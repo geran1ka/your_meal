@@ -9,6 +9,7 @@ import { navigationListController } from './navigationListController.js';
 import { cartInit } from './cart.js';
 
 
+
 catalogList.addEventListener('click', (event) => {
     const target = event.target;
     if (target.closest('.product__detail') 
@@ -30,6 +31,7 @@ const init = () => {
     renderListProduct();
     navigationListController(renderListProduct);
     cartInit();
+
 };
 
 init();
