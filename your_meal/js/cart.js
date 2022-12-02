@@ -1,9 +1,11 @@
 import { API_URL, PREFIX_PRODUCT } from "./const.js";
-import { catalogList, countAmount, modalProduct, modalProductBtn, orderCount, orderList } from "./elements.js";
+import { catalogList, countAmount, modalDelivery, modalProductBtn, order, orderCount, orderList, orderSubmit, orderTotalAmount, orderWrapTitle } from "./elements.js";
 import { getData } from "./getData.js";
+import { orderController } from "./orderController.js";
 
 const getCart = () => {
     const cartList = localStorage.getItem('cart');
+    console.log('cartList: ', cartList);
     if(cartList) {
         return JSON.parse(cartList);
     } else {
@@ -11,23 +13,32 @@ const getCart = () => {
     }
 };
 
+
+
 const renderCartList = async () => {
     const cartList = getCart();
+
+
+    orderSubmit.disabled = !cartList.length;
+
     const allIdProduct = cartList.map(item => item.id);
-    console.log('allIdProduct: ', allIdProduct);
-    console.log('allIdProduct: ', allIdProduct.toString());
-    const data = await getData(`${API_URL}${PREFIX_PRODUCT}?list=${allIdProduct}`)
+    const data = cartList.length
+        ? await getData(`${API_URL}${PREFIX_PRODUCT}?list=${allIdProduct}`)
+        : [];
     
     
     const countProduct = cartList.reduce((acc, item) => acc + item.count, 0);
-    orderCount.textContent = countProduct
-    
+    orderCount.textContent = countProduct;
+
+    orderTotalAmount.textContent = '';
+
     const cartItems = data.map(item => {
         const li = document.createElement('li');
         li.classList.add('order__item');
         li.dataset.idProduct = item.id;
 
         const product = cartList.find((cardItem => cardItem.id === item.id));
+        
 
         li.innerHTML = `
             <img src="${API_URL}/${item.image}" alt="${item.title}" class="order__image">
@@ -41,18 +52,24 @@ const renderCartList = async () => {
             </div>
 
             <div class="order__product-count count">
-            <button class="count__minus">-</button>
+            <button class="count__minus" data-id-product=${product.id}>-</button>
 
             <p class="count__amount">${product.count}</p>
 
-            <button class="count__plus">+</button>
+            <button class="count__plus" data-id-product=${product.id}>+</button>
             </div>
-        `;
+        `;     
         return li;
     });
 
     orderList.textContent = '';
     orderList.append(...cartItems);
+
+    orderTotalAmount.textContent = data.reduce((acc, item) => {
+        const product = cartList.find((cardItem => cardItem.id === item.id));
+        return acc + (item.price * product.count);
+    }, 0);
+        
 };
 
 const updateCartList = (cartList) => {
@@ -61,8 +78,8 @@ const updateCartList = (cartList) => {
 };
 
 const addCart = (id, count = 1) => {
-    console.log(id, count);
     const cartList = getCart();
+
     const product = cartList.find((item) => item.id === id);
 
     if (product) {
@@ -70,12 +87,24 @@ const addCart = (id, count = 1) => {
     } else {
         cartList.push({id, count});
     }
+    
     updateCartList(cartList);
 }
 
 const removeCart = (id) => {
-
+    const cartList = getCart();
+    const productIndex = cartList.findIndex((item) => item.id === id);
+    artList[productIndex].count -= 1;
+    if (cartList[productIndex].count < 1) {
+        cartList.splice(productIndex, 1);
+    }
+    updateCartList(cartList);
 };
+
+export const clearCart = () => {
+    localStorage.removeItem('cart');
+    renderCartList();
+}
 
 const cartController = () => {
     catalogList.addEventListener('click', ({target}) => {
@@ -88,8 +117,31 @@ const cartController = () => {
             modalProductBtn.dataset.idProduct,
             parseInt(countAmount.textContent),
         )
-    })
+    });
 
+    orderList.addEventListener('click', ({target}) => {
+        const targetPlus = target.closest('.count__plus');
+        const targetMinus = target.closest('.count__minus');
+
+        if (targetPlus) {
+            addCart(targetPlus.dataset.idProduct);
+        }
+
+        if (targetMinus) {
+            removeCart(targetMinus.dataset.idProduct);
+        }
+    })
+    orderWrapTitle.addEventListener('click', () => {
+        order.classList.toggle('order_open');
+    });
+    orderSubmit.addEventListener('click', () => {
+        modalDelivery.classList.add('modal_open');
+    });
+    modalDelivery.addEventListener('click', ({target}) => {
+        if (target.closest('.modal__close') || modalDelivery === target) {
+            modalDelivery.classList.remove('modal_open');
+        }
+    })
 };
 
 
@@ -97,4 +149,5 @@ const cartController = () => {
 export const cartInit = () => {
     cartController();
     renderCartList();
+    orderController(getCart);
 };
